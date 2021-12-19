@@ -1,0 +1,222 @@
+-- allows for the controller script to access the functions in the map info module 
+require "main.map_info"
+
+
+local graph = {
+	area1 = {"area2", "area3"},
+	area2 = {"area1", "area4"}, 
+	area3 = {"area1", "area4"}, 
+	area4 = {"area2", "area3"} 
+}
+
+-- used to check the array path quicker 
+-- assigns each value in the array with either true or false 
+function Set(list)
+	local set = {}
+	for key, one in pairs(list) do 
+		set[one] = true 
+	end 
+	return set 
+end 
+
+--returns the node at that specific position 
+function return_node(key, i) 
+	if key == "area1" then 
+		return graph.area1[i]
+	elseif key == "area2" then 
+		return graph.area2[i] 
+	elseif key == "area3" then 
+		return graph.area3[i] 
+	else 
+		return graph.area4[i] 
+	end 
+end 
+
+
+-- used to find the order that the array should go in 
+function unlockOrder(aim)
+	start = "area1"
+	local path = {}
+	local list = Set(path)
+	local temp = 0 
+	
+	while start ~= aim do 
+		-- makes sure that no duplicates are contained in the path array 
+		-- duplicates can appear when the algorithnm backtracks 
+		if list[start] == nil then 
+			table.insert(path, start)
+		end 
+
+		for key, area in pairs(graph) do 
+			if start == key then 
+				for i = 1, 2 do 
+					list = Set(path) 
+					temp = return_node(key, i)
+					if list[temp] == nil then 
+						start = temp 
+						break 
+					end 
+				end 
+			break 
+			end 
+		end 
+
+		-- to check that all nodes have been visited
+		-- if not, reset back to the start of the node 
+		if start == aim and table.maxn(path) < 3 then 
+			-- if both start and aim are equal to area2 change start to area3 
+			-- this is to prevent an infinite loop 
+			if start == "area2" then 
+				start = "area3" 
+			else 
+				start = "area1" 
+			end 
+		end 
+	end 
+	table.insert(path, start)
+	return path 
+end  
+
+
+function init(self)
+	msg.post(".", "acquire_input_focus")
+	local s = math.random(2, 4)
+	local v = tostring(s)
+	local aim = "area" .. v 
+	self.order = unlockOrder(aim)
+
+	-- opens the title screen once game opens up 
+	msg.post("#title_proxy", "load")
+	self.current_collection = "#title_proxy"
+end
+
+function final(self)
+	msg.post(".", "release_input_focus")
+end
+
+function update(self, dt)
+	-- Add update code here
+	-- Learn more: https://defold.com/manuals/script/
+	-- Remove this function if not needed
+end
+
+function on_message(self, message_id, message, sender)
+	-- if a proxy has loaded, it should show up in the screen 
+	if message_id == hash("proxy_loaded") then
+		msg.post(sender, "enable")
+
+	
+	-- if a message is sent to open the title screen, then the title screen should be loaded to memory
+	elseif message_id == hash("show title screen") then 
+		msg.post(self.current_collection, "unload")
+		msg.post("#title_proxy", "load")
+		self.current_collection = "#title_proxy"
+
+	-- if a message is sent to open area 1, the area 1 proxy should be loaded to memory
+	elseif message_id == hash("show area 1 screen") then 
+		msg.post(self.current_collection, "unload")
+		msg.post("#area1_proxy", "load")
+		self.current_collection = "#area1_proxy"
+		updatePosition("area1")
+		msg.post("@render:", "draw_map")
+
+	-- if a message is sent to open area 2, the area 2 proxy should be loaded to memory
+	elseif message_id == hash("show area 2 screen") then 
+		msg.post(self.current_collection, "unload")
+		msg.post("#area2_proxy", "load")
+		self.current_collection = "#area2_proxy"
+		updatePosition("area2")
+
+	-- if a message is sent to open area 3, the area 3 proxy should be loaded to memory
+	elseif message_id == hash("show area 3 screen") then 
+		msg.post(self.current_collection, "unload")
+		msg.post("#area3_proxy", "load")
+		self.current_collection = "#area3_proxy"
+		updatePosition("area3")
+
+	-- if a message is sent to open area 4, the area 4 proxy should be loaded to memory
+	elseif message_id == hash("show area 4 screen") then 
+		msg.post(self.current_collection, "unload")
+		msg.post("#area4_proxy", "load")
+		self.current_collection = "#area4_proxy"
+		updatePosition("area4")
+	end
+end
+
+function on_input(self, action_id, action)
+	-- if "x" is pressed
+	if action_id == hash("inventory") and action.pressed then 
+
+		-- if the inventory screen is not currently open, open it 
+		if self.current_collection ~= "#inventory_proxy" then 
+
+			-- checks whether the current screen a map area screen 
+			if string.find(self.current_collection, "area") ~= nil then 
+				-- if it is disable the screen
+				msg.post(self.current_collection, "disable")
+
+			else
+				msg.post(self.current_collection, "unload")
+			end
+			
+			msg.post("#inventory_proxy", "load")
+			self.current_collection = "#inventory_proxy"
+
+			-- tell the render to stop drawing the mini map 
+			msg.post("@render:", "stop_drawing")
+
+		-- if the inventory screen is currently open, close
+		else 
+			msg.post(self.current_collection, "unload")
+			-- to work the area that the player is currently in so that area can be renabled 
+			local area = returnPosition()
+			area = "#"..area.."_proxy"
+			-- opens the area 
+			msg.post(area, "enable")
+			self.current_collection = area
+
+			-- tells the render to resume drawing the map 
+			msg.post("@render:", "draw_map")
+		end 
+
+	-- if "z" is pressed
+	elseif action_id == hash("map") and action.pressed then
+		-- if the map screen is not currently open, open it 
+		if self.current_collection ~= "#map_proxy" then 
+
+			-- checks whether a map area proxy is open or whether another proxy is open
+			if string.find(self.current_collection, "area") ~= nil then  
+				msg.post(self.current_collection, "disable")
+
+			else
+				msg.post(self.current_collection, "unload")
+			end
+			
+			msg.post("#map_proxy", "load")
+			self.current_collection = "#map_proxy"
+
+			-- tell the render to stop drawing the mini map 
+			msg.post("@render:", "stop_drawing")
+			
+		-- if the map screen is currently open, close
+		else
+			msg.post(self.current_collection, "unload")
+			-- to work the area that the player is currently in so that area can be renabled 
+			local area = returnPosition()
+			area = "#"..area.."_proxy"
+			-- opens the area 
+			msg.post(area, "enable")
+			self.current_collection = area
+
+			-- tells the render to resume drawing the map 
+			msg.post("@render:", "draw_map")
+
+		end 
+	end
+end
+
+function on_reload(self)
+	-- Add reload-handling code here
+	-- Learn more: https://defold.com/manuals/hot-reload/
+	-- Remove this function if not needed
+end

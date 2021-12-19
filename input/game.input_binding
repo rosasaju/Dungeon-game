@@ -1,0 +1,32 @@
+key_trigger {
+  input: KEY_X
+  action: "inventory"
+}
+key_trigger {
+  input: KEY_Z
+  action: "map"
+}
+key_trigger {
+  input: KEY_W
+  action: "up"
+}
+key_trigger {
+  input: KEY_A
+  action: "left"
+}
+key_trigger {
+  input: KEY_S
+  action: "down"
+}
+key_trigger {
+  input: KEY_D
+  action: "right"
+}
+key_trigger {
+  input: KEY_K
+  action: "attack"
+}
+mouse_trigger {
+  input: MOUSE_BUTTON_LEFT
+  action: "touch"
+}

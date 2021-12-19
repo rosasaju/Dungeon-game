@@ -1,0 +1,113 @@
+-- import the map info module 
+require "main.map_info" 
+
+-- import the trigger module 
+require "main.trigger"
+
+
+-- input bindings 
+local up = hash("up")
+local down = hash("down")
+local right = hash("right")
+local left = hash("left")
+local attack = hash("attack")
+
+-- The animation sets 
+local animation_idle = hash("idle")
+local animation_forward = hash("run")
+local animation_backward = hash("flipped_run")
+
+
+function init(self)
+	msg.post(".", "acquire_input_focus")
+	self.speed = 120
+	self.dir = vmath.vector3(0, 0, 0)
+	self.current_animation = animation_idle 
+	self.temp = go.get_position()
+end
+
+function final(self)
+	msg.post(".", "release_input_focus")
+end
+
+function update(self, dt)
+	-- work out the new position of the object 
+	local pos = go.get_position()
+	pos = pos + self.speed * self.dir * dt 
+
+	-- update the position within the map_info module 
+	if pos ~= self.temp then 
+		updateLocation(pos)
+		self.temp = pos 
+	end 
+	-- set the object to the new position 
+	go.set_position(pos)
+
+	local animation = animation_idle
+
+	-- to check which animation should be played 
+	if self.dir.x == 1 then 
+		animation = animation_forward
+	elseif self.dir.x == -1 then 
+		animation = animation_backward
+	elseif self.dir.y ~= 0 then 
+		animation = animation_forward
+	else 
+		animation = animation_idle
+	end 
+
+	-- if the animation is not the same as the animation about to played then play it 
+	if self.current_animation ~= animation then 
+		msg.post("#sprite", "play_animation", { id = animation })
+		self.current_animation = animation 
+	end 
+	
+
+	-- reset the self.dir 
+	self.dir = vmath.vector3(0, 0, 0)
+end
+
+function on_message(self, message_id, message, sender)
+	-- when object interacts with a trigger object 
+	if message_id == hash("trigger_response") then 
+		triggerSearch(message.other_id)
+	end 
+end
+
+function on_input(self, action_id, action)
+	-- when "w" is pressed 
+	if action_id == up then
+		self.dir.y = 1 
+
+	-- when "s" is pressed 
+	elseif action_id == down then 
+		self.dir.y = -1 
+
+	-- when "a" is pressed 
+	elseif action_id == left then 
+		self.dir.x = -1 
+
+	-- when "d" is pressed 
+	elseif action_id == right then 
+		self.dir.x = 1 
+
+		-- when "k" is pressed 
+	elseif action_id == attack and action.pressed then 
+		local location = go.get_position()
+		
+		if self.dir.x == 1 then 
+			location.x = location.x + 5
+		elseif self.dir.x == -1 then 
+			location.x = location.x - 5
+		end 
+
+		location.y = location.y + 0
+		factory.create("#weapon_factory", location)
+	end 
+end
+
+function on_reload(self)
+	-- Add reload-handling code here
+	-- Learn more: https://defold.com/manuals/hot-reload/
+	-- Remove this function if not needed
+end
